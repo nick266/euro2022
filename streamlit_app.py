@@ -1,38 +1,33 @@
 import pandas as pd
 from statsbombpy import sb
-import plotly.express as px
-from datetime import datetime, timedelta
-import matplotlib.pyplot as plt
 import streamlit as st
 
 
-def preprocessing(euro_competition_id, euro_season_id, match_id):
-    euro_matches = sb.matches(
-        competition_id=euro_competition_id, season_id=euro_season_id
-    )
-    events_data = sb.events(match_id=match_id)
-    score = {
-        euro_matches[euro_matches.match_id == match_id]
-        .home_team.values[0]: euro_matches[euro_matches.match_id == match_id]
-        .home_score.values[0],
-        euro_matches[euro_matches.match_id == match_id]
-        .away_team.values[0]: euro_matches[euro_matches.match_id == match_id]
-        .away_score.values[0],
-    }
-    events_data.sort_values(["minute", "timestamp"], inplace=True)
-    parsed_time = events_data["timestamp"].apply(
-        lambda x: datetime.strptime(x, "%H:%M:%S.%f")
-    )
-    time_differences = parsed_time.diff().dt.total_seconds()
-    events_data["time_differences"] = [
-        x if ((x > 0) & (x < 60 * 5)) else 0 for x in time_differences
-    ]
-    return events_data, score
+def get_data(match_ids):
+    event_data_tot = pd.DataFrame()
+    for match_id in match_ids:
+        event_data = sb.events(match_id=match_id)
+        df_360 = pd.read_json(
+            f"/Users/borgwardt/Documents/repos/open-data/data/three-sixty/{match_id}.json"  # noqa: E501
+        )
+        df_merged = pd.merge(
+            event_data, df_360, how="left", left_on="id", right_on="event_uuid"
+        )
+        event_data_tot = pd.concat(
+            [event_data_tot, df_merged], ignore_index=True
+        )  # noqa: E501
+    return event_data_tot
 
 
-def enrich_data(events_data, team, other_team, score):
-    kpi_summary = []
-    team_events = events_data[events_data["team"] == team]
+def preprocess_data(df_raw):
+    df_preprocessed = df_raw.sort_values(["match_id", "minute", "timestamp"])
+    df_preprocessed.reset_index(inplace=True)
+    return df_preprocessed
+
+
+def create_kpis(team_events):
+    # Total goals
+    goals = team_events[team_events["shot_outcome"] == "Goal"].shape[0]
 
     # Total shots
     shots = len(team_events[team_events["type"] == "Shot"])
@@ -44,7 +39,8 @@ def enrich_data(events_data, team, other_team, score):
     # Pass accuracy
     completed_passes = len(
         team_events[
-            (team_events["type"] == "Pass") & (team_events["pass_outcome"].isnull())
+            (team_events["type"] == "Pass")
+            & (team_events["pass_outcome"].isnull())  # noqa: E501
         ]
     )
     pass_accuracy = (completed_passes / passes) * 100
@@ -52,7 +48,8 @@ def enrich_data(events_data, team, other_team, score):
     # Total duels won
     duels_won = len(
         team_events[
-            (team_events["type"] == "Duel") & (team_events["duel_outcome"] == "Won")
+            (team_events["type"] == "Duel")
+            & (team_events["duel_outcome"] == "Won")  # noqa: E501
         ]
     )
 
@@ -66,40 +63,23 @@ def enrich_data(events_data, team, other_team, score):
     clearances = len(team_events[team_events["type"] == "Clearance"])
 
     # Percentage of possession
-    team_possession = events_data[
-        (events_data["possession_team"] == team) & (events_data["type"] != "Pressure")
+    team_possession_seconds = team_events[
+        (team_events["type"] != "Pressure")
     ].duration.sum()
-    other_team_possession = events_data[
-        (events_data["possession_team"] == other_team)
-        & (events_data["type"] != "Pressure")
-    ].duration.sum()
-    possession = team_possession / (team_possession + other_team_possession)
-    kpi_summary.append(
+    kpi_summary = pd.DataFrame(
         {
-            "team": team,
-            "score": score[team],
-            "shots": shots,
-            "shot_statsbomb_xg": shot_statsbomb_xg,
-            "passes": passes,
-            "pass_accuracy": pass_accuracy,
-            "duels_won": duels_won,
-            "tackles": tackles,
-            "interceptions": interceptions,
-            "clearances": clearances,
-            "possession": possession,
+            "goals": [goals],
+            "shots": [shots],
+            "shot_statsbomb_xg": [shot_statsbomb_xg],
+            "passes": [passes],
+            "pass_accuracy": [pass_accuracy],
+            "duels_won": [duels_won],
+            "tackles": [tackles],
+            "interceptions": [interceptions],
+            "clearances": [clearances],
+            "possession_seconds": [team_possession_seconds],
         }
     )
-    return kpi_summary
-
-
-def get_summary(events_data: pd.DataFrame, score: dict):  # Calculate KPIs for each team
-    kpi_summary = pd.DataFrame()
-    teams = events_data["team"].unique()
-
-    for team in teams:
-        other_team = [opponent for opponent in teams if opponent != team][0]
-        df_temp = pd.DataFrame(enrich_data(events_data, team, other_team, score))
-        kpi_summary = pd.concat([kpi_summary, df_temp], ignore_index=True)
     return kpi_summary
 
 
@@ -110,29 +90,28 @@ womens_euro_competition = competitions[
 womens_euro_2022 = womens_euro_competition[
     womens_euro_competition["season_name"] == "2022"
 ]
-
-
-kpi_summary_df = pd.DataFrame()
 euro_competition_id = womens_euro_2022.competition_id.unique()[0]
 euro_season_id = womens_euro_2022.season_id.unique()[0]
-for match_id in sb.matches(
+match_ids = sb.matches(
     competition_id=euro_competition_id, season_id=euro_season_id
-).match_id.unique():
-    events_data, score = preprocessing(euro_competition_id, euro_season_id, match_id)
-    df_temp = get_summary(events_data, score)
-    kpi_summary_df = pd.concat([kpi_summary_df, df_temp], ignore_index=True)
+).match_id
 
-df = kpi_summary_df.groupby("team").mean()
+df_raw = get_data(match_ids)
+df_preprocessed = preprocess_data(df_raw)
+df_kpis = df_preprocessed.groupby(["match_id", "team"]).apply(create_kpis)
+df_kpis.reset_index(level=2, drop=True, inplace=True)
 
 st.title("Team Statistics Dashboard")
 
 # Select team
-selected_team = st.selectbox("Select a team", df.index)
+selected_team = st.selectbox(
+    "Select a team", df_kpis.index.get_level_values(1)
+)  # noqa: E501
 
 # Display team statistics
-team_stats = df.loc[selected_team]
-average = df.mean()
-std_dev = df.std()
+team_stats = df_kpis.xs(selected_team, level=1).mean()
+average = df_kpis.mean()
+std_dev = df_kpis.std()
 result_df = pd.DataFrame(
     {"Team Values": team_stats, "Average": average, "STD": std_dev}
 )

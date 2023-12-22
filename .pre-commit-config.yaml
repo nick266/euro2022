@@ -9,7 +9,9 @@ repos:
     rev: 22.10.0
     hooks:
     -   id: black
+    args: [--line-length=99]  # Sets max line length for Black to 99
 -   repo: https://github.com/pycqa/flake8
-    rev: 4.0.1  # Replace with the desired version of flake8
+    rev: 4.0.1
     hooks:
     -   id: flake8
+    args: [--max-line-length=99]  # Sets max line length for Flake8 to 99
