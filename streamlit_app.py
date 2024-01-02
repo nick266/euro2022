@@ -171,13 +171,15 @@ st.write(f"Statistics for {selected_team}:")
 st.write(styled_result_df)
 #  to do:
 #  caching (check)
-#  colors for dashboard
+#  colors for dashboard (check)
 #  possession in percentag (check)
 #  defender distance
 #  filter for dates
+#  average position
 #  soccer field metric (eg pass direction)
 #  list of players with xgoals and xassits
 #  unit tests
 #  doc strings
 #  new metric based on difference in thread of scoring or conceding a goal
 #  in after an event
+# hide std, mean and other column
