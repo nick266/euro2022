@@ -77,6 +77,44 @@ class KPIs:
         df_result.fillna(0, inplace=True)
         return df_result
 
+    def calculate_passed_opponents(self, row):
+        passed_opponents = 0
+        for player in row["freeze_frame"]:
+            if not player["teammate"]:
+                if (
+                    row["location"][0]
+                    < player["location"][0]
+                    < row["pass_end_location"][0]
+                ):
+                    passed_opponents = passed_opponents + 1
+        return passed_opponents
+
+    def get_passed_opponents(self, df):
+
+        df_passes = df[
+            [
+                "player",
+                "team",
+                "match_id",
+                "location",
+                "pass_end_location",
+                "pass_outcome",
+                "freeze_frame",
+            ]
+        ].dropna(
+            subset=["location", "pass_end_location", "freeze_frame"], axis=0
+        )  # noqa: E501
+        df_passes_complete = df_passes[df_passes["pass_outcome"].isnull()]
+        df_passes_complete["passed_opponents"] = df_passes_complete.apply(
+            self.calculate_passed_opponents, axis=1
+        )
+        df_result = (
+            df_passes_complete.groupby(["team", "player"])
+            .passed_opponents.sum()
+            .sort_values(ascending=False)
+        )
+        return df_result
+
     def get_assists_to_xg(self, df):
         df_temp = df[["pass_assisted_shot_id", "player"]]
         df_temp.columns = ["id_for_merge", "player_assisted"]
@@ -183,9 +221,11 @@ class KPIs:
         df_kpis = df_preprocessed.groupby(["match_id"]).apply(self.create_kpis)
         df_goals_xg = self.get_goals_xg(df_preprocessed)
         df_assists_to_xg = self.get_assists_to_xg(df_preprocessed)
+        df_passed_opponents = self.get_passed_opponents(df_preprocessed)
         return (
             df_kpis,
             df_iv_position_at_opponent_goal_kick,
             df_goals_xg,
             df_assists_to_xg,
+            df_passed_opponents,
         )

@@ -22,9 +22,12 @@ class Data:
         ]
         euro_competition_id = womens_euro_2022.competition_id.unique()[0]
         euro_season_id = womens_euro_2022.season_id.unique()[0]
-        match_ids = sb.matches(
+        matches = sb.matches(
             competition_id=euro_competition_id, season_id=euro_season_id
-        ).match_id
+        )
+        match_ids = matches[
+            matches.match_date < _self.conf.date_of_analysis
+        ].match_id  # noqa: E501
         return match_ids
 
     @st.cache_data

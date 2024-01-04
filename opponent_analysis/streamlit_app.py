@@ -28,6 +28,43 @@ def color_cells(row):
     return cell_color
 
 
+def create_pass_analysis(filtered_data):
+    # Create the figure
+    fig, ax = plt.subplots(figsize=(10, 6), tight_layout=True)
+
+    # Initialize the pitch
+    pitch = Pitch(pitch_type="statsbomb", line_zorder=2)
+
+    pitch.draw(ax=ax)
+
+    for idx, row in filtered_data.iterrows():
+        if not isinstance(row["pass_outcome"], float):
+            color = "red"
+            width = 0.5
+        elif not isinstance(row["pass_shot_assist"], float):
+            color = "silver"
+            width = 1
+        elif not isinstance(row["pass_goal_assist"], float):
+            color = "gold"
+            width = 2
+        else:
+            color = "blue"
+            width = 0.5
+        pitch.arrows(
+            row["location"][0],
+            row["location"][1],
+            row["pass_end_location"][0],
+            row["pass_end_location"][1],
+            ax=ax,
+            width=width,
+            headwidth=5,
+            color=color,
+            zorder=3,
+            alpha=0.7,
+        )
+    return fig
+
+
 def create_high_of_center_analysis(df, team):
     if len(df[df.team == team]) == 0:
         return None, None, None
@@ -93,12 +130,15 @@ def run_code():
         df_iv_position_at_opponent_goal_kick,
         df_goals_xg,
         df_assists_to_xg,
+        df_passed_opponents,
     ) = kpis.run_kpis(df_preprocessed)
     return (
         df_kpis,
         df_iv_position_at_opponent_goal_kick,
         df_goals_xg,
         df_assists_to_xg,
+        df_preprocessed,
+        df_passed_opponents,
     )  # noqa: E501
 
 
@@ -107,6 +147,8 @@ def run_code():
     df_iv_position_at_opponent_goal_kick,
     df_goals_xg,
     df_assists_to_xg,
+    df_preprocessed,
+    df_passed_opponents,
 ) = run_code()
 
 
@@ -146,6 +188,69 @@ st.write(
     ]  # noqa: E501
 )
 
+opponent_filter = st.selectbox(
+    "Select Match ID",
+    np.append(
+        df_preprocessed[df_preprocessed["team"] == selected_team][
+            "opponent"
+        ].unique(),  # noqa: E501
+        np.array(["all"]),
+    ),
+)
+if opponent_filter != "all":
+    player_filter = st.selectbox(
+        "Select Player",
+        np.append(
+            df_preprocessed[
+                (df_preprocessed["team"] == selected_team)
+                & (df_preprocessed["opponent"] == opponent_filter)
+            ]["player"].unique(),
+            np.array(["all"]),
+        ),
+    )
+else:
+    player_filter = st.selectbox(
+        "Select Player",
+        np.append(
+            df_preprocessed[(df_preprocessed["team"] == selected_team)][
+                "player"
+            ].unique(),
+            np.array(["all"]),
+        ),
+    )
+filtered_data = df_preprocessed[(df_preprocessed["team"] == selected_team)]
+if opponent_filter != "all":
+    filtered_data = filtered_data[
+        (filtered_data["opponent"] == opponent_filter)
+    ]  # noqa: E501
+if player_filter != "all":
+    filtered_data = filtered_data[(filtered_data["player"] == player_filter)]
+filtered_data = filtered_data[
+    [
+        "location",
+        "pass_end_location",
+        "team",
+        "match_id",
+        "player",
+        "pass_outcome",
+        "pass_goal_assist",
+        "pass_shot_assist",
+    ]
+].dropna(subset=["location", "pass_end_location"])
+
+st.write(
+    f"All passes of {player_filter} in  the match vs {opponent_filter}. "
+    + "Complete passes are blue, incomplete passes are red. "
+    + "Assists to shots are silver and assists to goals are golden."  # noqa: E501
+)
+fig = create_pass_analysis(filtered_data)
+st.pyplot(fig)
+st.write("List of players with passed opponents by passing.")
+st.write(
+    df_passed_opponents[
+        df_passed_opponents.index.get_level_values("team") == selected_team
+    ]
+)
 
 fig, average_coord, average_tot = create_high_of_center_analysis(
     df=df_iv_position_at_opponent_goal_kick, team=selected_team
@@ -160,18 +265,3 @@ if fig:
     )
 else:
     st.write(f"No events found for {selected_team}.")
-#  to do:
-#  caching (check)
-#  colors for dashboard (check)
-#  possession in percentag (check)
-#  defender distance (check)
-#  filter for dates
-#  average position (cant do)
-#  soccer field metric (eg pass direction)
-#  list of players with xgoals and xassits (check)
-#  unit tests
-#  doc strings
-#  new metric based on difference in thread of scoring or conceding a goal
-#  in after an event
-#  hide std, mean and other column
-#  one table for goals, xg and assists
