@@ -38,10 +38,30 @@ class Preprocessing:
         df_center["center_id"].ffill(inplace=True)
         return df_center
 
+    def add_oppnent_team(self, df_preprocessed):
+        grouped_teams = df_preprocessed.groupby("match_id").team.unique()
+        teams_df_1 = grouped_teams.apply(pd.Series)
+
+        # Rename the columns
+        teams_df_1.columns = ["team_1", "team_2"]
+
+        # Reset the index to have match_id as a column
+        teams_df_1.reset_index(inplace=True)
+        teams_df_2 = teams_df_1.copy()
+        teams_df_2.columns = ["match_id", "team_2", "team_1"]
+        df_teams = pd.concat([teams_df_2, teams_df_1])
+        df_teams.columns = ["match_id", "team", "opponent"]
+        df_preprocessed = df_preprocessed.merge(
+            df_teams, how="left", on=["match_id", "team"]
+        )
+        return df_preprocessed
+
     def run_preprocessing(self, df_raw):
         df_center = self.get_center_ids(df_raw)
-        df_preprocessed = df_center.sort_values(
-            ["match_id", "minute", "timestamp"]
-        )  # noqa: E501
+        df_with_opponent = self.add_oppnent_team(df_center)
+        df_preprocessed = df_with_opponent.sort_values(["match_id", "index"])
+        df_preprocessed["event_time"] = (
+            df_preprocessed.minute.values * 60 + df_preprocessed.second.values
+        )
         df_preprocessed.reset_index(inplace=True)
         return df_preprocessed
