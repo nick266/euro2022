@@ -11,7 +11,17 @@ from opponent_analysis.config import Config
 conf = Config()
 
 
-def color_cells(row):
+def color_cells(row: pd.Series):
+    """returns the color of the cell of the dataframe to indicate whether the
+    KPI is over or under or within the average.
+
+    Args:
+        row (pd.Series): kpi with std, mean, and a column that indicates
+          whether a high value is good or not
+
+    Returns:
+        str: color for the row
+    """
     cell_color = []
     for val in row:
         if row["high_is_good"] * row["Team Values"] < row["high_is_good"] * (
@@ -28,7 +38,18 @@ def color_cells(row):
     return cell_color
 
 
-def create_pass_analysis(filtered_data):
+def create_pass_analysis(filtered_data: pd.DataFrame):
+    """Plots the passes in the dataframe as vectors on the pitch.
+    depending on the outcome of the pass the color is chosen.
+
+    Args:
+        filtered_data (pd.DataFrame): dataframe with start and end of passes
+        and the outcome of the pass
+
+    Returns:
+        matplotlib.figure.Figure: figure of a pitch with passes plotted as
+          vectors
+    """
     # Create the figure
     fig, ax = plt.subplots(figsize=(10, 6), tight_layout=True)
 
@@ -65,7 +86,24 @@ def create_pass_analysis(filtered_data):
     return fig
 
 
-def create_high_of_center_analysis(df, team):
+def create_high_of_center_analysis(df: pd.DataFrame, team: str):
+    """To identify the hight of the centers at the moment at which the opponent
+      team has a goal kick. Therefore goal kicks are
+    detected. Next for every event the timedelta is defined from the goal kick.
+    Finally all events are filtered that are close to the goal kick which
+    invole a center player. By the location of these events the hight is
+    determined.
+    This function determines the mean and plots the results on a pitch.
+
+    Args:
+        df (pd.DataFrame): _description_
+        team (str): _description_
+
+    Returns:
+        matplotlib.figure.Figure: plot of the hight and events on the pitch
+        int: average distance to the own goal line
+        int: average distance to the own goal line for all teams
+    """
     if len(df[df.team == team]) == 0:
         return None, None, None
 
@@ -120,6 +158,17 @@ def create_high_of_center_analysis(df, team):
 
 @st.cache_data
 def run_code():
+    """Calculates all nesseccary dataframes for the tables and figure
+
+    Returns:
+        pd.DataFrame: standard KPIs like xg or pass accuracy
+        pd.DataFrame: the center position while opponent goal kick
+        pd.DataFrame: expected goals and goals for each player
+        pd.DataFrame: assists to expected goals for each player
+        pd.DataFrame: the complete preprocced dataframe
+        pd.DataFrame: dataframe with the total number of passed by opponents
+                    by passing
+    """
     data = Data()
     df_raw = data.get_data()
     p = Preprocessing()
