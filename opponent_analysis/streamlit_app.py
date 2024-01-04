@@ -173,5 +173,5 @@ else:
 #  doc strings
 #  new metric based on difference in thread of scoring or conceding a goal
 #  in after an event
-# hide std, mean and other column
-# one table for goals, xg and assists
+#  hide std, mean and other column
+#  one table for goals, xg and assists
