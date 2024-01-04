@@ -1,9 +1,9 @@
-# euro2022
+# Euro 2022
 This is the prototype of a dashboard that can be used to analyse the different teams.  \
-It uses free statsbomb event- and 360-data of the women euro 2022.  \
-## get it running
+It uses free statsbomb event- and 360-data of the women euro 2022.
+## Get it running
 First you need to clone this repo: \
-`git clone ` \
+`git clone https://github.com/nick266/euro2022.git` \
 Afterwards you can install the nesseccary packages in a virtual enviroment. \
 The enviroment you can create by (on mac): \
 `python -m venv venv` \
@@ -12,4 +12,4 @@ and activate it by: \
 Now the package can be installed by (using python 3.11.1): \
 `poetry install` \
 You host the dashboard locally by executing: \
-`poetry run streamlit run streamlit_app.py` \
+`poetry run streamlit run streamlit_app.py`
