@@ -1,14 +1,36 @@
 import pandas as pd
 import streamlit as st
 import matplotlib.pyplot as plt
+import matplotlib.backends.backend_pdf
 from mplsoccer import Pitch
 import numpy as np
+from io import BytesIO
+import base64
 from opponent_analysis.preprocessing import Preprocessing
 from opponent_analysis.data import Data
 from opponent_analysis.kpis import KPIs
 from opponent_analysis.config import Config
 
 conf = Config()
+
+
+def fig_to_pdf_base64(fig: matplotlib.figure.Figure):
+    """Function for downloading figures from app
+
+    Args:
+        fig (matplotlib.figure.Figure): any mtplotlib figure that is displayed
+
+    Returns:
+        str: binary data of the PDF file that is base64
+    """
+    pdf_buffer = BytesIO()
+    pdf = matplotlib.backends.backend_pdf.PdfPages(
+        pdf_buffer, keep_empty=False
+    )  # noqa: E501
+    pdf.savefig(fig)
+    pdf.close()
+    pdf_base64 = base64.b64encode(pdf_buffer.getvalue()).decode("utf-8")
+    return pdf_base64
 
 
 def color_cells(row: pd.Series):
@@ -50,10 +72,7 @@ def create_pass_analysis(filtered_data: pd.DataFrame):
         matplotlib.figure.Figure: figure of a pitch with passes plotted as
           vectors
     """
-    # Create the figure
     fig, ax = plt.subplots(figsize=(10, 6), tight_layout=True)
-
-    # Initialize the pitch
     pitch = Pitch(pitch_type="statsbomb", line_zorder=2)
 
     pitch.draw(ax=ax)
@@ -106,21 +125,11 @@ def create_high_of_center_analysis(df: pd.DataFrame, team: str):
     """
     if len(df[df.team == team]) == 0:
         return None, None, None
-
-    # Create the figure
     fig, ax = plt.subplots(figsize=(10, 6), tight_layout=True)
-
-    # Initialize the pitch
     pitch = Pitch(pitch_type="statsbomb", line_zorder=2)
-
-    # Create the pitch plot
     pitch.draw(ax=ax)
-
-    # Calculate the average y-coordinate
     average_coord = sum(df[df.team == team].x) / len(df[df.team == team].x)
     average_tot = sum(df.x) / len(df.x)
-
-    # Draw horizontal line through the middle of the points
     ax.vlines(
         x=average_coord,
         ymin=0,
@@ -142,7 +151,6 @@ def create_high_of_center_analysis(df: pd.DataFrame, team: str):
     pitch.scatter(
         114, 34, s=300, color="white", edgecolors="black", zorder=3, ax=ax
     )  # noqa: E501
-    # Plot the points
     pitch.scatter(
         df[df.team == team].x,
         df[df.team == team].y,
@@ -202,13 +210,9 @@ def run_code():
 
 
 st.title("Team Statistics Dashboard")
-
-# Select team
 selected_team = st.selectbox(
     "Select a team", df_kpis.index.get_level_values(1).unique()
 )
-
-# Display team statistics
 team_stats = df_kpis.xs(selected_team, level=1).mean()
 average = df_kpis.mean()
 std_dev = df_kpis.std()
@@ -294,6 +298,9 @@ st.write(
 )
 fig = create_pass_analysis(filtered_data)
 st.pyplot(fig)
+pdf_base64 = fig_to_pdf_base64(fig)
+pdf_href = f'<a href="data:file/pdf;base64,{pdf_base64}" download="plot.pdf">Download PDF</a>'  # noqa: E501
+st.markdown(pdf_href, unsafe_allow_html=True)
 st.write("List of players with passed opponents by passing.")
 st.write(
     df_passed_opponents[
@@ -312,5 +319,8 @@ if fig:
     st.write(
         f"The averge distance from the own goal for {selected_team} is {np.round(average_coord,1)} yards. \n The tournament average is the dashed black line ({np.round(average_tot,1)} yards)."  # noqa: E501
     )
+    pdf_base64 = fig_to_pdf_base64(fig)
+    pdf_href = f'<a href="data:file/pdf;base64,{pdf_base64}" download="plot.pdf">Download PDF</a>'  # noqa: E501
+    st.markdown(pdf_href, unsafe_allow_html=True)
 else:
     st.write(f"No events found for {selected_team}.")

@@ -3,12 +3,23 @@ import pandas as pd
 
 
 class Preprocessing:
+    """Adds additional information to the raw and sorts it"""
+
     def __init__(
         self,
     ):
         self.conf = Config()
 
-    def get_center_ids(self, event_data_tot):
+    def get_center_ids(self, event_data_tot: pd.DataFrame):
+        """gets the player ids of the centers at the current state of the game.
+
+        Args:
+            event_data_tot (pd.DataFrame): _description_
+
+        Returns:
+            pd.DataFrame: original dataframe with the an additional column
+            with the center player ids
+        """
         center_back = pd.DataFrame()
         for index, row in event_data_tot.iterrows():
 
@@ -38,14 +49,18 @@ class Preprocessing:
         df_center["center_id"].ffill(inplace=True)
         return df_center
 
-    def add_oppnent_team(self, df_preprocessed):
+    def add_opponent_team(self, df_preprocessed: pd.DataFrame):
+        """Adds the opponent as a new column
+
+        Args:
+            df_preprocessed (pd.DataFrame): dataframe with event and 360 data
+
+        Returns:
+            pd.DataFrame: original dataframe plus the opponent column
+        """
         grouped_teams = df_preprocessed.groupby("match_id").team.unique()
         teams_df_1 = grouped_teams.apply(pd.Series)
-
-        # Rename the columns
         teams_df_1.columns = ["team_1", "team_2"]
-
-        # Reset the index to have match_id as a column
         teams_df_1.reset_index(inplace=True)
         teams_df_2 = teams_df_1.copy()
         teams_df_2.columns = ["match_id", "team_2", "team_1"]
@@ -56,9 +71,18 @@ class Preprocessing:
         )
         return df_preprocessed
 
-    def run_preprocessing(self, df_raw):
+    def run_preprocessing(self, df_raw: pd.DataFrame):
+        """Runs the different functions and adds a event time to each event
+
+        Args:
+            df_raw (pd.DataFrame): the raw merged 360 and event data
+
+        Returns:
+            pd.DataFrame: original dataframe sorted and enriched with some
+            information
+        """
         df_center = self.get_center_ids(df_raw)
-        df_with_opponent = self.add_oppnent_team(df_center)
+        df_with_opponent = self.add_opponent_team(df_center)
         df_preprocessed = df_with_opponent.sort_values(["match_id", "index"])
         df_preprocessed["event_time"] = (
             df_preprocessed.minute.values * 60 + df_preprocessed.second.values
