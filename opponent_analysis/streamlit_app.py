@@ -209,9 +209,9 @@ def run_code():
 ) = run_code()
 
 
-st.title("Team Statistics Dashboard")
+st.title("Gegner Analyse")
 selected_team = st.selectbox(
-    "Select a team", df_kpis.index.get_level_values(1).unique()
+    "Wähle ein Team", df_kpis.index.get_level_values(1).unique()
 )
 team_stats = df_kpis.xs(selected_team, level=1).mean()
 average = df_kpis.mean()
@@ -226,15 +226,19 @@ result_df = pd.DataFrame(
     }
 )
 styled_result_df = result_df.style.apply(color_cells, axis=1)
-st.write(f"Statistics for {selected_team}:")
+st.write(f"High level KPIs für {selected_team}:")
 st.write(styled_result_df)
 
-st.write("Goals scored by player and their expected goals.")
+st.write("Die erziehlten Tore im Vergleich zu den xg pro Spielerin")
+df_goals_xg.columns = ["xg", "goals"]
 st.write(
     df_goals_xg[df_goals_xg.index.get_level_values("team") == selected_team]
 )  # noqa: E501
 
-st.write("Players with assist to expected goals.")
+st.write(
+    "Die Summe der XGs die durch Pässe der jeweiligen Spielerin entstanden sind"  # noqa: E501
+)  # noqa: E501
+df_assists_to_xg.columns = ["pass_leading_to_xg"]
 st.write(
     df_assists_to_xg[
         df_assists_to_xg.index.get_level_values("team") == selected_team
@@ -242,7 +246,7 @@ st.write(
 )
 
 opponent_filter = st.selectbox(
-    "Select Match ID",
+    f"Wähle ein Gegener von {selected_team}",
     np.append(
         df_preprocessed[df_preprocessed["team"] == selected_team][
             "opponent"
@@ -252,7 +256,7 @@ opponent_filter = st.selectbox(
 )
 if opponent_filter != "all":
     player_filter = st.selectbox(
-        "Select Player",
+        "Wähle eine Spielerin",
         np.append(
             df_preprocessed[
                 (df_preprocessed["team"] == selected_team)
@@ -292,16 +296,18 @@ filtered_data = filtered_data[
 ].dropna(subset=["location", "pass_end_location"])
 
 st.write(
-    f"All passes of {player_filter} in  the match vs {opponent_filter}. "
-    + "Complete passes are blue, incomplete passes are red. "
-    + "Assists to shots are silver and assists to goals are golden."  # noqa: E501
+    f"Alle Pässe von {player_filter} in dem Spiel gegen {opponent_filter}. "
+    + "Angekommenen Pässe sind blau, nicht angekomme Pässe sind rot. "
+    + "Pässe die zu einem Torschuss geführt haben sind silber, Schüsse die zu einem Tor geführt haben sind golden."  # noqa: E501
 )
 fig = create_pass_analysis(filtered_data)
 st.pyplot(fig)
 pdf_base64 = fig_to_pdf_base64(fig)
 pdf_href = f'<a href="data:file/pdf;base64,{pdf_base64}" download="plot.pdf">Download PDF</a>'  # noqa: E501
 st.markdown(pdf_href, unsafe_allow_html=True)
-st.write("List of players with passed opponents by passing.")
+st.write(
+    "Hier ist die Anzahl der überspielten Gegner in Summe pro Spielerin aufgelistet. Es werden nur angekommene Pässe berücksichtigt."  # noqa: E501
+)
 st.write(
     df_passed_opponents[
         df_passed_opponents.index.get_level_values("team") == selected_team
@@ -312,15 +318,15 @@ fig, average_coord, average_tot = create_high_of_center_analysis(
     df=df_iv_position_at_opponent_goal_kick, team=selected_team
 )
 st.write(
-    f"Events of the centers after opponent goal kick (within {conf.goal_kick_tolerance}s)"  # noqa: E501
+    f"Hier sind die Events mit IV Beteiligung direkt nach einem Abstoß durch rote Punkte dargestellt (innerhalb {conf.goal_kick_tolerance}s)"  # noqa: E501
 )
 if fig:
     st.pyplot(fig)
     st.write(
-        f"The averge distance from the own goal for {selected_team} is {np.round(average_coord,1)} yards. \n The tournament average is the dashed black line ({np.round(average_tot,1)} yards)."  # noqa: E501
+        f"Aus den events wurde für {selected_team} eine durchschnittliche Distanz zum eigen Torauslinie von {np.round(average_coord,1)} yards bestimmt, blaue Linie. \n Der Durchschnitt im Turnier beträgt {np.round(average_tot,1)} yards (schwarze Linie)."  # noqa: E501
     )
     pdf_base64 = fig_to_pdf_base64(fig)
     pdf_href = f'<a href="data:file/pdf;base64,{pdf_base64}" download="plot.pdf">Download PDF</a>'  # noqa: E501
     st.markdown(pdf_href, unsafe_allow_html=True)
 else:
-    st.write(f"No events found for {selected_team}.")
+    st.write(f"Keine Events gefunden für {selected_team}.")
