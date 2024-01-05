@@ -28,8 +28,8 @@ You host the dashboard locally by executing: \
 - soccer field metric (eg pass direction) (check)
 - list of players with xgoals and xassits (check)
 - line breaking passes (check)
-- unit tests
-- doc strings
+- unit tests (check)
+- doc strings (check)
 - new metric based on difference in thread of scoring or conceding a goal in after an event
 - hide std, mean and other column
 - correlation to win/goal for each KPI
