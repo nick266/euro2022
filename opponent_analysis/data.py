@@ -59,7 +59,7 @@ class Data:
         for match_id in match_ids:
             event_data = sb.events(match_id=match_id)
             df_360 = pd.read_json(
-                f"{_self.conf.path_to_statsbomb_open_data}open-data/data/three-sixty/{match_id}.json"  # noqa: E501
+                f"{_self.conf.path_to_statsbomb_open_data}{match_id}.json"  # noqa: E501
             )
             df_merged = pd.merge(
                 event_data,

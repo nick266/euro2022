@@ -8,4 +8,4 @@ class Config:
         self.competition_name = "UEFA Women's Euro"
         self.season_name = "2022"
         self.date_of_analysis = "2022-07-30"
-        self.path_to_statsbomb_open_data = "/Users/borgwardt/Documents/repos/"
+        self.path_to_statsbomb_open_data = "/360/"
